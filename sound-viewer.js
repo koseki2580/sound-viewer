@@ -1,0 +1,465 @@
+class SoundViewer extends HTMLElement {
+  sound = undefined;
+  waveSpan = undefined;
+  maxSize = 100;
+  AUDIO_STATE = {
+    STOP: 0,
+    PLAYING: 1,
+    PAUSE: 2,
+    ERROR: 10,
+  };
+
+  constructor() {
+    // コンストラクターでは常に super を最初に呼び出してください
+    super();
+    this.shadow = this.attachShadow({ mode: "closed" }); // 'this.shadowRoot' を設定して返す
+  }
+  connectedCallback() {
+    this.render();
+  }
+  attributeChangedCallback() {}
+  render() {
+    // 外部スタイルシートをシャドウ DOM に適用
+    const linkElem = document.createElement("link");
+    linkElem.setAttribute("rel", "stylesheet");
+    linkElem.setAttribute("href", "sound-viewer.css");
+
+    // 生成された要素をシャドウ DOM に添付
+    this.shadow.appendChild(linkElem);
+
+    // 読み込み時の実行する関数
+    const onLoad = (data) => {
+      const view = new DataView(data.target.result);
+
+      const readResult = this.#audio.read(view);
+      if (readResult === false) {
+        alert("非対応のwavファイルです");
+        return;
+      }
+
+      this.#audio.load(
+        URL.createObjectURL(
+          new Blob([data.target.result], { type: "audio/wav" })
+        )
+      );
+    };
+
+    // wavファイルを読みこむ部分
+    const uploadBtn = document.createElement("input");
+    uploadBtn.type = "file";
+    uploadBtn.accept = "audio/wav";
+    uploadBtn.addEventListener("change", (e) => {
+      if (this.#audio.audioContext === undefined) this.#audio.init();
+      let fileReader = new FileReader();
+      const file = e.composedPath()[0].files[0];
+      fileReader.onload = onLoad;
+      fileReader.readAsArrayBuffer(file);
+    });
+
+    const playBtn = document.createElement("button");
+    playBtn.textContent = "再生";
+    playBtn.addEventListener("click", (e) => {
+      if (this.#audio.isState === this.AUDIO_STATE.PLAYING) {
+        this.#audio.pause();
+      } else {
+        this.#audio.play();
+      }
+    });
+    const stopBtn = document.createElement("button");
+    stopBtn.textContent = "停止";
+    stopBtn.addEventListener("click", (e) => {
+      this.#audio.stop();
+      console.log(this.#drawing.leftData);
+      console.log(this.#drawing.rightData);
+    });
+
+    const canvasDiv = document.createElement("div");
+    canvasDiv.classList.add("canvas-container");
+
+    // canvasDiv.appendChild(mainCanvas);
+    // canvasDiv.appendChild(waveSpan);
+    this.#drawing.canvasElement = canvasDiv;
+
+    this.shadow.appendChild(canvasDiv);
+    this.shadow.appendChild(uploadBtn);
+    this.shadow.appendChild(playBtn);
+    this.shadow.appendChild(stopBtn);
+  }
+
+  // audio関連の処理
+  #audio = {
+    samplingRate: undefined,
+    bitRate: undefined,
+    channel: undefined,
+    isState: this.AUDIO_STATE.STOP,
+    audioContext: undefined,
+    audioSource: undefined,
+    audioObj: undefined,
+
+    /**
+     * 初期化を行う関数
+     */
+    init: () => {
+      this.#audio.isState = this.AUDIO_STATE.STOP;
+      this.#audio.audioContext =
+        new AudioContext() ||
+        new (window.AudioContext || window.webkitAudioContext)();
+    },
+    /**
+     * 音声ファイルを読み込んで再生準備する関数
+     * @param {filepath} data 音声ファイルのpath
+     */
+    load: async (file) => {
+      if (this._audioSource !== undefined) {
+        this._audioSource.disconnect();
+      }
+      // audio elementを作成
+      this.#audio.audioObj = new Audio(file);
+
+      // audio elementのaudio nodeを作成
+      this.#audio.audioSource = new MediaElementAudioSourceNode(
+        this.#audio.audioContext,
+        { mediaElement: this.#audio.audioObj }
+      );
+      // 再生先を接続
+      // createAnalyserを使うと色々調査できるっぽい
+      this.#audio.audioSource.connect(this.#audio.audioContext.destination);
+    },
+    /**
+     * 音声再生
+     */
+    play: () => {
+      if (this.#audio.isState === this.AUDIO_STATE.PLAYING) return;
+      this.#audio.audioObj.play();
+      this.#audio.isState = this.AUDIO_STATE.PLAYING;
+      this.#drawing.seekBarDraw();
+
+      // var drawVisual = requestAnimationFrame(draw);
+    },
+
+    /**
+     * 再生一時停止
+     */
+    pause: () => {
+      this.#audio.audioObj.pause();
+      this.#audio.isState = this.AUDIO_STATE.PAUSE;
+    },
+
+    /**
+     * 再生停止
+     */
+    stop: () => {
+      this.#audio.audioObj.pause();
+      this.#audio.audioObj.currentTime = 0;
+      this.#audio.isState = this.AUDIO_STATE.STOP;
+    },
+
+    currentTime: () => {
+      // console.log("this.#audio.audioObj.currentTime");
+      if (this.#audio.audioObj === undefined) return 0;
+      return this.#audio.audioObj.currentTime;
+    },
+
+    /**
+     * wavファイルを読み込み関数
+     * @param {DataView} view ArrayBufferを取得できるクラス
+     * @returns {bool}
+     * true  : 読み込み成功
+     * false : 読み込み失敗
+     */
+    read: (view) => {
+      // 文字列を読み取る関数
+      const readString = (view, offset, length) => {
+        let text = "";
+        for (let i = 0; i < length; i++) {
+          text += String.fromCharCode(view.getUint8(offset + i));
+        }
+        return text;
+      };
+
+      // 16bit 1channel
+      const read16bitMonoPCM = (view, offset, length) => {
+        let output = [];
+        for (let i = 0; i < length / 2; i++) {
+          const input = view.getInt16(offset + i * 2, true);
+          output[i] = (parseFloat(input) / parseFloat(32768)) * this.maxSize;
+          if (output[i] > this.maxSize) output[i] = this.maxSize;
+          else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
+        }
+        return [output, undefined];
+      };
+
+      // 16bit 2channel
+      const read16bitStereoPCM = (view, offset, length) => {
+        let leftOutput = [];
+        let rightOutput = [];
+        for (let i = 0; i < length / 4; i++) {
+          const left = view.getInt16(offset + i * 4, true);
+          const right = view.getInt16(offset + i * 4 + 2, true);
+          leftOutput[i] = (parseFloat(left) / parseFloat(32768)) * this.maxSize;
+          rightOutput[i] =
+            (parseFloat(right) / parseFloat(32768)) * this.maxSize;
+          if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
+          else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
+          if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
+          else if (rightOutput[i] < -this.maxSize)
+            rightOutput[i] = -this.maxSize;
+        }
+        return [leftOutput, rightOutput];
+      };
+
+      // 8bit 1channel
+      const read8bitMonoPCM = (view, offset, length) => {
+        let output = [];
+        for (let i = 0; i < length; i++) {
+          const input = view.getInt8(offset + i, true);
+          output[i] = (input / 128) * this.maxSize;
+          if (output[i] > this.maxSize) output[i] = this.maxSize;
+          else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
+        }
+        return [output, undefined];
+      };
+
+      // 8bit 2channel
+      const read8bitStereoPCM = (view, offset, length) => {
+        let leftOutput = [];
+        let rightOutput = [];
+        for (let i = 0; i < length / 2; i++) {
+          const left = view.getInt8(offset + i * 2, true);
+          const right = view.getInt8(offset + i * 2 + 1, true);
+          leftOutput[i] = (left / 128) * this.maxSize;
+          rightOutput[i] = (right / 128) * this.maxSize;
+          if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
+          else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
+          if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
+          else if (rightOutput[i] < -this.maxSize)
+            rightOutput[i] = -this.maxSize;
+        }
+        return [leftOutput, rightOutput];
+      };
+      // RIFFヘッダ
+      const riffHeader = readString(view, 0, 4);
+      const fileSize = view.getUint32(4, true);
+
+      // WAVEヘッダ
+      const waveHeader = readString(view, 8, 4);
+
+      // fmtチャンク
+      const fmt = readString(view, 12, 4);
+      const fmtChunkSize = view.getUint32(16, true); // fmtチャンクのバイト数
+      const fmtID = view.getUint16(20, true); // フォーマットID(非圧縮PCMなら1)
+
+      // チャンネル数
+      this.#audio.channel = view.getUint16(22, true);
+
+      // サンプリングレート
+      this.#audio.samplingRate = view.getUint32(24, true);
+      const dataSpeed = view.getUint32(28, true); // バイト/秒 1秒間の録音に必要なバイト数(サンプリングレート*チャンネル数*ビットレート/8)
+      const blockSize = view.getUint16(32, true); // ブロック境界、(ステレオ16bitなら16bit*2=4byte)
+
+      // ビットレート
+      this.#audio.bitRate = view.getUint16(34, true);
+
+      let exOffset = 0; //拡張パラメータ分のオフセット
+      if (fmtChunkSize > 16) {
+        const extendedSize = fmtChunkSize - 16; // 拡張パラメータのサイズ
+        exOffset = extendedSize;
+      }
+
+      // dataチャンク
+      const data = readString(view, 36 + exOffset, 4);
+      // 波形データのバイト数
+      const dataChunkSize = view.getUint32(40 + exOffset, true);
+      let readPCM;
+      if (this.#audio.channel === 1 && this.#audio.bitRate === 16) {
+        readPCM = read16bitMonoPCM;
+      } else if (this.#audio.channel === 2 && this.#audio.bitRate === 16) {
+        readPCM = read16bitStereoPCM;
+      } else if (this.#audio.channel === 1 && this.#audio.bitRate === 8) {
+        readPCM = read8bitMonoPCM;
+      } else if (this.#audio.channel === 2 && this.#audio.bitRate === 8) {
+        readPCM = read8bitStereoPCM;
+      } else return false;
+      let leftData;
+      let rightData;
+      [leftData, rightData] = readPCM(
+        view,
+        44 + exOffset,
+        dataChunkSize + exOffset
+      ); // 波形データを受け取る
+      this.#drawing.init();
+      this.#drawing.setLeftData(leftData);
+      this.#drawing.setRightData(rightData);
+      return true;
+    },
+  };
+
+  // 描画関連
+  #drawing = {
+    canvasElement: undefined,
+    leftData: undefined,
+    rightData: undefined,
+    seekBarCanvas: undefined,
+    leftCanvas: undefined,
+    rightCanvas: undefined,
+    // seekBarCtx: undefined,
+    peakLength: 128,
+    offset: 5,
+    scale: undefined,
+    init: () => {
+      if (this.#drawing.seekBarCanvas !== undefined) return;
+      this.#drawing.seekBarCanvas = document.createElement("canvas");
+      this.#drawing.seekBarCanvas.classList.add("main-canvas");
+      this.#drawing.seekBarCanvas.classList.add("canvas-width");
+      this.#drawing.seekBarCanvas.width = 2000;
+      this.#drawing.canvasElement.appendChild(this.#drawing.seekBarCanvas);
+
+      this.waveSpan = document.createElement("span");
+      this.waveSpan.classList.add("wave-position");
+      this.#drawing.canvasElement.appendChild(this.waveSpan);
+
+      this.#drawing.seekBarDraw();
+
+      // this.#drawing.seekBarCtx = this.#drawing.seekBarCanvas.getContext("2d");
+    },
+    getPeak: (data) => {
+      const max = (x, y) => {
+        if (x < y) return y;
+        return x;
+      };
+      const min = (x, y) => {
+        if (x > y) return y;
+        return x;
+      };
+      let peakData = [];
+      let count = 0;
+      let flag = true;
+      while (count < data.length) {
+        let size = 0;
+        let peak = flag === true ? -this.maxSize : this.maxSize;
+        while (size < this.#drawing.peakLength && count < data.length) {
+          const chnum = flag === true ? max : min;
+          peak = chnum(peak, data[count]);
+          size++;
+          count++;
+        }
+        peakData.push(peak);
+        flag = !flag;
+      }
+
+      return peakData;
+    },
+    setLeftData: (data) => {
+      if (data === undefined) return;
+      this.#drawing.leftData = this.#drawing.getPeak(data);
+
+      if (this.#drawing.leftCanvas === undefined) {
+        const leftCanvas = document.createElement("canvas");
+        leftCanvas.classList.add("wave-canvas");
+        leftCanvas.classList.add("canvas-width");
+        leftCanvas.classList.add("wave-left");
+        // leftCanvas.width = data.length + this.#drawing.offset * 2;
+        leftCanvas.width = 2000;
+        leftCanvas.height = (this.maxSize + this.#drawing.offset) * 2;
+        this.#drawing.leftCanvas = leftCanvas;
+        this.waveSpan.appendChild(leftCanvas);
+        this.#drawing.waveDraw(
+          this.#drawing.leftCanvas,
+          this.#drawing.leftData
+        );
+      }
+    },
+    // TODO undefindが入ってきた時にcanvasを削除する処理追加
+    setRightData: (data) => {
+      if (data === undefined) return;
+      this.#drawing.rightData = this.#drawing.getPeak(data);
+      if (this.#drawing.rightCanvas === undefined) {
+        const rightCanvas = document.createElement("canvas");
+        rightCanvas.classList.add("wave-canvas");
+        rightCanvas.classList.add("canvas-width");
+        rightCanvas.classList.add("wave-right");
+        rightCanvas.width = 2000;
+        rightCanvas.height = (this.maxSize + this.#drawing.offset) * 2;
+        this.#drawing.rightCanvas = rightCanvas;
+
+        this.waveSpan.appendChild(rightCanvas);
+        this.#drawing.waveDraw(
+          this.#drawing.rightCanvas,
+          this.#drawing.rightData
+        );
+      }
+    },
+    waveDraw: (cnavas, data) => {
+      const N = data.length;
+      const ctx = cnavas.getContext("2d");
+      if (this.#drawing.scale === undefined)
+        this.#drawing.scale = cnavas.width / data.length;
+      // const scale = cnavas.width / data.length;
+      /*
+      ----------------------------> x
+      |
+      |
+      |
+      |
+      ↓
+      y
+      canvasは↑の形で座標を取るので、変換する必要がある。
+      初めに+, - となっているので - 基準線を行い、全てのy軸を負の値にする。
+      その後、符号を反転させる
+      */
+      ctx.moveTo(
+        this.#drawing.offset,
+        this.#drawing.coordinateTransformation(
+          data[0],
+          this.maxSize + this.#drawing.offset
+        )
+      );
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(0, 0, 255, 1)";
+      // for (let idx = 1; idx < data.length; ++idx) {
+      for (let idx = 1; idx < N; ++idx) {
+        ctx.lineTo(
+          idx * this.#drawing.scale + this.#drawing.offset,
+          this.#drawing.coordinateTransformation(
+            data[idx],
+            this.maxSize + this.#drawing.offset
+          )
+        );
+      }
+      ctx.stroke();
+    },
+    coordinateTransformation: (y, baseLine) => {
+      y -= baseLine;
+      return -y;
+    },
+
+    seekBarDraw: () => {
+      if (this.#audio.isState === this.AUDIO_STATE.PLAYING)
+        requestAnimationFrame(this.#drawing.seekBarDraw);
+      const currentTime = this.#audio.currentTime();
+      const ctx = this.#drawing.seekBarCanvas.getContext("2d");
+      ctx.clearRect(
+        0,
+        0,
+        this.#drawing.seekBarCanvas.width,
+        this.#drawing.seekBarCanvas.height
+      );
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255, 0, 0, 1)";
+      const scale = this.#drawing.scale === undefined ? 0 : this.#drawing.scale;
+      const x =
+        this.#drawing.calcCanvasPosition(currentTime) * scale +
+        this.#drawing.offset;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.maxSize * 2);
+      ctx.stroke();
+    },
+    calcCanvasPosition: (num) => {
+      return (num * this.#audio.samplingRate) / this.#drawing.peakLength;
+    },
+  };
+}
+
+customElements.define("sound-viewer", SoundViewer);
