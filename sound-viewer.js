@@ -303,7 +303,7 @@ class SoundViewer extends HTMLElement {
     leftCanvas: undefined,
     rightCanvas: undefined,
     // seekBarCtx: undefined,
-    peakLength: 128,
+    peakLength: 256,
     offset: 5,
     scale: undefined,
     init: () => {
@@ -317,8 +317,6 @@ class SoundViewer extends HTMLElement {
       this.waveSpan = document.createElement("span");
       this.waveSpan.classList.add("wave-position");
       this.#drawing.canvasElement.appendChild(this.waveSpan);
-
-      this.#drawing.seekBarDraw();
 
       // this.#drawing.seekBarCtx = this.#drawing.seekBarCanvas.getContext("2d");
     },
@@ -363,15 +361,22 @@ class SoundViewer extends HTMLElement {
         leftCanvas.height = (this.maxSize + this.#drawing.offset) * 2;
         this.#drawing.leftCanvas = leftCanvas;
         this.waveSpan.appendChild(leftCanvas);
-        this.#drawing.waveDraw(
-          this.#drawing.leftCanvas,
-          this.#drawing.leftData
-        );
       }
+      this.#drawing.seekBarDraw();
+      this.#drawing.waveDraw(
+        this.#drawing.leftCanvas,
+        this.#drawing.leftData
+      );
     },
     // TODO undefindが入ってきた時にcanvasを削除する処理追加
     setRightData: (data) => {
-      if (data === undefined) return;
+      if (data === undefined) {
+        this.#drawing.rightCanvas = undefined;
+        // console.log(this.waveSpan)
+        this.waveSpan.removeChild(this.waveSpan.lastElementChild);
+        return;
+      }
+
       this.#drawing.rightData = this.#drawing.getPeak(data);
       if (this.#drawing.rightCanvas === undefined) {
         const rightCanvas = document.createElement("canvas");
@@ -383,11 +388,11 @@ class SoundViewer extends HTMLElement {
         this.#drawing.rightCanvas = rightCanvas;
 
         this.waveSpan.appendChild(rightCanvas);
-        this.#drawing.waveDraw(
-          this.#drawing.rightCanvas,
-          this.#drawing.rightData
-        );
       }
+      this.#drawing.waveDraw(
+        this.#drawing.rightCanvas,
+        this.#drawing.rightData
+      );
     },
     waveDraw: (cnavas, data) => {
       const N = data.length;
@@ -407,6 +412,13 @@ class SoundViewer extends HTMLElement {
       初めに+, - となっているので - 基準線を行い、全てのy軸を負の値にする。
       その後、符号を反転させる
       */
+      ctx.clearRect(
+        0,
+        0,
+        cnavas.width,
+        cnavas.height
+      );
+      ctx.beginPath();
       ctx.moveTo(
         this.#drawing.offset,
         this.#drawing.coordinateTransformation(
