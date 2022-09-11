@@ -68,6 +68,7 @@ class SoundViewer extends HTMLElement {
         this.#audio.pause();
       } else {
         this.#audio.play();
+        this.#drawing.seekBarDraw();
       }
     });
     const stopBtn = document.createElement("button");
@@ -137,8 +138,6 @@ class SoundViewer extends HTMLElement {
       if (this.#audio.isState === this.AUDIO_STATE.PLAYING) return;
       this.#audio.audioObj.play();
       this.#audio.isState = this.AUDIO_STATE.PLAYING;
-      this.#drawing.seekBarDraw();
-
       // var drawVisual = requestAnimationFrame(draw);
     },
 
