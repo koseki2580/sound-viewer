@@ -31,8 +31,8 @@ class SoundViewer extends HTMLElement {
     const onLoad = (data) => {
       const view = new DataView(data.target.result);
 
-      const readResult = this.#audio.read(view);
-      if (readResult === false) {
+      const [readLeftData, readRightData] = this.#audio.read(view);
+      if (readLeftData === undefined) {
         alert("非対応のwavファイルです");
         return;
       }
@@ -42,6 +42,11 @@ class SoundViewer extends HTMLElement {
           new Blob([data.target.result], { type: "audio/wav" })
         )
       );
+      // console.log("a");
+      // console.log(readLeftData);
+      this.#drawing.init();
+      this.#drawing.setLeftData(readLeftData);
+      this.#drawing.setRightData(readRightData);
     };
 
     // wavファイルを読みこむ部分
@@ -69,8 +74,8 @@ class SoundViewer extends HTMLElement {
     stopBtn.textContent = "停止";
     stopBtn.addEventListener("click", (e) => {
       this.#audio.stop();
-      console.log(this.#drawing.leftData);
-      console.log(this.#drawing.rightData);
+      // console.log(this.#drawing.leftData);
+      // console.log(this.#drawing.rightData);
     });
 
     const canvasDiv = document.createElement("div");
@@ -156,6 +161,7 @@ class SoundViewer extends HTMLElement {
 
     currentTime: () => {
       // console.log("this.#audio.audioObj.currentTime");
+      // TODO 念の為入れているがおそらくいらなくなる
       if (this.#audio.audioObj === undefined) return 0;
       return this.#audio.audioObj.currentTime;
     },
@@ -237,6 +243,8 @@ class SoundViewer extends HTMLElement {
         }
         return [leftOutput, rightOutput];
       };
+
+      // TODO 各ヘッダの結果を見てエラーを返すようにする
       // RIFFヘッダ
       const riffHeader = readString(view, 0, 4);
       const fileSize = view.getUint32(4, true);
@@ -279,18 +287,18 @@ class SoundViewer extends HTMLElement {
         readPCM = read8bitMonoPCM;
       } else if (this.#audio.channel === 2 && this.#audio.bitRate === 8) {
         readPCM = read8bitStereoPCM;
-      } else return false;
-      let leftData;
-      let rightData;
-      [leftData, rightData] = readPCM(
-        view,
-        44 + exOffset,
-        dataChunkSize + exOffset
-      ); // 波形データを受け取る
-      this.#drawing.init();
-      this.#drawing.setLeftData(leftData);
-      this.#drawing.setRightData(rightData);
-      return true;
+      } else return [undefined, undefined];
+      // let leftData;
+      // let rightData;
+      // [leftData, rightData] = readPCM(
+      //   view,
+      //   44 + exOffset,
+      //   dataChunkSize + exOffset
+      // ); // 波形データを受け取る
+      // this.#drawing.init();
+      // this.#drawing.setLeftData(leftData);
+      // this.#drawing.setRightData(rightData);
+      return readPCM(view, 44 + exOffset, dataChunkSize + exOffset);
     },
   };
 
@@ -363,17 +371,16 @@ class SoundViewer extends HTMLElement {
         this.waveSpan.appendChild(leftCanvas);
       }
       this.#drawing.seekBarDraw();
-      this.#drawing.waveDraw(
-        this.#drawing.leftCanvas,
-        this.#drawing.leftData
-      );
+      this.#drawing.waveDraw(this.#drawing.leftCanvas, this.#drawing.leftData);
     },
     // TODO undefindが入ってきた時にcanvasを削除する処理追加
     setRightData: (data) => {
-      if (data === undefined) {
+      if (data === undefined && this.#drawing.rightCanvas !== undefined) {
         this.#drawing.rightCanvas = undefined;
         // console.log(this.waveSpan)
         this.waveSpan.removeChild(this.waveSpan.lastElementChild);
+        return;
+      } else if (data === undefined) {
         return;
       }
 
@@ -412,12 +419,7 @@ class SoundViewer extends HTMLElement {
       初めに+, - となっているので - 基準線を行い、全てのy軸を負の値にする。
       その後、符号を反転させる
       */
-      ctx.clearRect(
-        0,
-        0,
-        cnavas.width,
-        cnavas.height
-      );
+      ctx.clearRect(0, 0, cnavas.width, cnavas.height);
       ctx.beginPath();
       ctx.moveTo(
         this.#drawing.offset,
