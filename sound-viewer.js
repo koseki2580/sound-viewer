@@ -16,6 +16,7 @@ class SoundViewer extends HTMLElement {
   }
   connectedCallback() {
     this.render();
+    this.setAudioFile = this.#setAudioFile;
   }
   attributeChangedCallback() {}
   render() {
@@ -27,40 +28,8 @@ class SoundViewer extends HTMLElement {
     // 生成された要素をシャドウ DOM に添付
     this.shadow.appendChild(linkElem);
 
-    // 読み込み時の実行する関数
-    const onLoad = (data) => {
-      const view = new DataView(data.target.result);
-
-      const [readLeftData, readRightData] = this.#audio.read(view);
-      if (readLeftData === undefined) {
-        alert("非対応のwavファイルです");
-        return;
-      }
-
-      this.#audio.load(
-        URL.createObjectURL(
-          new Blob([data.target.result], { type: "audio/wav" })
-        )
-      );
-      // console.log("a");
-      // console.log(readLeftData);
-      this.#drawing.init();
-      this.#drawing.setLeftData(readLeftData);
-      this.#drawing.setRightData(readRightData);
-    };
-
-    // wavファイルを読みこむ部分
-    const uploadBtn = document.createElement("input");
-    uploadBtn.type = "file";
-    uploadBtn.accept = "audio/wav";
-    uploadBtn.addEventListener("change", (e) => {
-      if (this.#audio.audioContext === undefined) this.#audio.init();
-      let fileReader = new FileReader();
-      const file = e.composedPath()[0].files[0];
-      fileReader.onload = onLoad;
-      fileReader.readAsArrayBuffer(file);
-    });
-
+    // ファイルを読み込む機能を追加
+    this.#createLoadFileElement();
     const playBtn = document.createElement("button");
     playBtn.textContent = "再生";
     playBtn.addEventListener("click", (e) => {
@@ -87,10 +56,56 @@ class SoundViewer extends HTMLElement {
     this.#drawing.canvasElement = canvasDiv;
 
     this.shadow.appendChild(canvasDiv);
-    this.shadow.appendChild(uploadBtn);
+
     this.shadow.appendChild(playBtn);
     this.shadow.appendChild(stopBtn);
   }
+
+  #createLoadFileElement = () => {
+    // 読み込み時の実行する関数
+    const onLoad = (data) => {
+      this.#setAudioFile(data.target.result);
+    };
+
+    // TODO 外からアトリビュートの設定で設定できるようにする
+    // wavファイルを読みこむ部分
+    const uploadBtn = document.createElement("input");
+    uploadBtn.type = "file";
+    uploadBtn.accept = "audio/wav";
+    uploadBtn.addEventListener("change", (e) => {
+      // if (this.#audio.audioContext === undefined) this.#audio.init();
+      let fileReader = new FileReader();
+      const file = e.composedPath()[0].files[0];
+      fileReader.onload = onLoad;
+      fileReader.readAsArrayBuffer(file);
+    });
+    this.shadow.appendChild(uploadBtn);
+  };
+
+  #setAudioFile = (arrayBuffer) => {
+    if (this.#audio.audioContext === undefined) this.#audio.init();
+    try {
+      const view = new DataView(arrayBuffer);
+
+      // TODO arraybufferかどうかを知りたいだけなので以下の部分をtryに入れる必要がないので変更したい
+      const [readLeftData, readRightData] = this.#audio.read(view);
+      if (readLeftData === undefined) {
+        alert("非対応のwavファイルです");
+        return;
+      }
+
+      this.#audio.load(
+        URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/wav" }))
+      );
+
+      this.#drawing.init();
+      this.#drawing.setLeftData(readLeftData);
+      this.#drawing.setRightData(readRightData);
+    } catch {
+      alert("ArrayBufferのデータをセットしてください。");
+      return;
+    }
+  };
 
   // audio関連の処理
   #audio = {
@@ -111,6 +126,7 @@ class SoundViewer extends HTMLElement {
         new AudioContext() ||
         new (window.AudioContext || window.webkitAudioContext)();
     },
+
     /**
      * 音声ファイルを読み込んで再生準備する関数
      * @param {filepath} data 音声ファイルのpath
