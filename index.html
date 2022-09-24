@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
     <title>sound-viewer</title>
-    <script src="sound-viewer.js"></script>
+    <script type="text/javascript" src="sound-viewer.js" defer></script>
+
+    <link rel="stylesheet" href="main.css" />
   </head>
   <body>
-    <input type="file" accept="audio/wav" id="test2" />
     <sound-viewer id="test"></sound-viewer>
+    <input type="file" accept="audio/wav" id="test2" />
   </body>
   <script>
     const a = document.getElementById("test");

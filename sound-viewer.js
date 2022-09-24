@@ -8,6 +8,7 @@ class SoundViewer extends HTMLElement {
     PAUSE: 2,
     ERROR: 10,
   };
+  static observedAttributes = ["disabled"];
 
   constructor() {
     // コンストラクターでは常に super を最初に呼び出してください
@@ -18,21 +19,60 @@ class SoundViewer extends HTMLElement {
     this.render();
     this.setAudioFile = this.#setAudioFile;
   }
-  attributeChangedCallback() {}
+  attributeChangedCallback(name, oldValue, newValue) {}
   render() {
     // 外部スタイルシートをシャドウ DOM に適用
     const linkElem = document.createElement("link");
     linkElem.setAttribute("rel", "stylesheet");
     linkElem.setAttribute("href", "sound-viewer.css");
 
+    // ファイルを読み込む機能を追加
+    // this.#createLoadFileElement();
+
+    // hover
+    const mainDiv = document.createElement("div");
+    mainDiv.classList.add("main-container");
+
+    // 波形要素を作成
+    const canvasDiv = document.createElement("div");
+    canvasDiv.classList.add("canvas-container");
+    this.#drawing.canvasElement = canvasDiv;
+
+    mainDiv.appendChild(canvasDiv);
+    // 操作盤を追加
+    this.#createOperationElement(mainDiv);
+
+    this.shadow.appendChild(mainDiv);
     // 生成された要素をシャドウ DOM に添付
     this.shadow.appendChild(linkElem);
+  }
 
-    // ファイルを読み込む機能を追加
-    this.#createLoadFileElement();
-    const playBtn = document.createElement("button");
-    playBtn.textContent = "再生";
+  #createOperationElement = (mainDiv) => {
+    // TODO 操作盤固定機能を追加する
+    // 上部操作部分
+    const divEleTop = document.createElement("div");
+    divEleTop.classList.add("top-operation-container");
+    divEleTop.classList.add("operation-container");
+
+    // 下部操作部分
+    const divEleBottom = document.createElement("div");
+    divEleBottom.classList.add("bottom-operation-container");
+    divEleBottom.classList.add("operation-container");
+
+    // 操作ボタン用div
+    const bottomOperationDiv = document.createElement("div");
+    bottomOperationDiv.classList.add("bottom-operation-btn-container");
+
+    // 操作ボタン追加
+    const playBtn = document.createElement("span");
+    // playBtn.type = "button";
+    // playBtn.value = "再生";
+    playBtn.classList.toggle("play-btn");
+    playBtn.classList.add("operation-btn");
+    // TODO 音声の再生状態と絡めてクラスを追加させる方が良い
     playBtn.addEventListener("click", (e) => {
+      playBtn.classList.toggle("play-btn");
+      playBtn.classList.toggle("pause-btn");
       if (this.#audio.isState === this.AUDIO_STATE.PLAYING) {
         this.#audio.pause();
       } else {
@@ -40,27 +80,28 @@ class SoundViewer extends HTMLElement {
         this.#drawing.seekBarDraw();
       }
     });
-    const stopBtn = document.createElement("button");
-    stopBtn.textContent = "停止";
+    const stopBtn = document.createElement("span");
+    stopBtn.classList.add("stop-btn");
+    stopBtn.classList.add("operation-btn");
+
     stopBtn.addEventListener("click", (e) => {
       this.#audio.stop();
       // console.log(this.#drawing.leftData);
       // console.log(this.#drawing.rightData);
     });
+    bottomOperationDiv.appendChild(playBtn);
+    bottomOperationDiv.appendChild(stopBtn);
+    divEleBottom.appendChild(bottomOperationDiv);
 
-    const canvasDiv = document.createElement("div");
-    canvasDiv.classList.add("canvas-container");
+    // 追加
+    // this.shadow.appendChild(divEleTop);
+    // this.shadow.appendChild(divEleBottom);
+    mainDiv.appendChild(divEleTop);
+    mainDiv.appendChild(divEleBottom);
+  };
 
-    // canvasDiv.appendChild(mainCanvas);
-    // canvasDiv.appendChild(waveSpan);
-    this.#drawing.canvasElement = canvasDiv;
-
-    this.shadow.appendChild(canvasDiv);
-
-    this.shadow.appendChild(playBtn);
-    this.shadow.appendChild(stopBtn);
-  }
-
+  // TODO ドラッグ&ドロップでもできるように対応する
+  // TODO Light DOMから読み込み機能をつけるかどうかを判断する属性を導入する
   #createLoadFileElement = () => {
     // 読み込み時の実行する関数
     const onLoad = (data) => {
@@ -107,6 +148,15 @@ class SoundViewer extends HTMLElement {
     }
   };
 
+  // TODO GainNodeを追加する(音量)
+  // TODO StereoPannerNodeを追加(右耳から聞こえるようにするか等)
+  // TODO https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics 空間オーディオ(StereoPannerNodeか選択させる？)
+  // TODO BiquadFilterNodeを追加(フィルタ)
+  // TODO 再生終了時の挙動について
+  // TODO ConvolverNodeを追加する(インパルス応答を読み込ませる形)
+  // TODO Audio classのpreservesPitch追加する
+  // TODO Audio classのplaybackRateを追加する
+  // TODO Audio classのloopを追加する（ループするボタンを追加）
   // audio関連の処理
   #audio = {
     samplingRate: undefined,

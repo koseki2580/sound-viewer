@@ -1,3 +1,16 @@
+:host {
+  position: relative;
+  display: block;
+  height: 500px;
+  width: 1000px;
+}
+
+.main-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
 .main-canvas {
   /* background-color: rgb(209, 209, 209); */
   /* width: 100%; */
@@ -9,8 +22,8 @@
 .canvas-container {
   position: relative;
   background-color: aliceblue;
-  width: 1000px;
-  height: 500px;
+  width: 100%;
+  height: 100%;
   overflow-x: scroll;
 }
 
@@ -33,9 +46,112 @@
 }
 
 .wave-left {
-  background-color: red;
+  /* background-color: red; */
 }
 
 .wave-right {
-  background-color: green;
+  /* background-color: green; */
+}
+
+.bottom-operation-container {
+  bottom: 0%;
+}
+.top-operation-container {
+  top: 0%;
+}
+
+.operation-container {
+  background-color: gray;
+  height: 30px;
+  position: absolute;
+  width: 100%;
+  z-index: 5;
+  display: none;
+}
+
+.main-container:hover .operation-container {
+  display: block;
+}
+
+.bottom-operation-btn-container {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  align-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+/* *****************************************************
+
+                      操作盤関連
+
+***************************************************** */
+.operation-btn {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: #000;
+  margin: 5px;
+  border-radius: 30px;
+}
+.play-btn::before {
+  position: absolute;
+  top: 50%;
+  left: 30%;
+  transform: translateY(-50%);
+  width: 0px;
+  height: 0px;
+  border: 5px solid transparent;
+  border-left: 9px solid currentColor;
+  box-sizing: border-box;
+  content: "";
+}
+
+.pause-btn::before,
+.pause-btn::after {
+  position: absolute;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  width: 2px;
+  height: 9px;
+  box-sizing: border-box;
+  background-color: currentColor;
+  content: "";
+}
+.pause-btn::before {
+  left: 40%;
+}
+.pause-btn::after {
+  left: 60%;
+}
+
+.stop-btn::before {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  transform: translateX(-50%) translateY(-50%);
+  width: 0px;
+  height: 0px;
+  border: 5px solid transparent;
+  border-right: 9px solid currentColor;
+  box-sizing: border-box;
+  content: "";
+}
+.stop-btn::after {
+  display: flex;
+  left: 6px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 9px;
+  box-sizing: border-box;
+  background-color: currentColor;
+  content: "";
 }
