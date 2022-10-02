@@ -298,7 +298,8 @@ class SoundViewer extends HTMLElement {
      */
 
     setVolume: (volume) => {
-      this.#audio.audioObj.volume = volume;
+      // TODO 変更したい（判定をなしにできるように）
+      if (this.#audio.audioObj) this.#audio.audioObj.volume = volume;
     },
 
     /**
