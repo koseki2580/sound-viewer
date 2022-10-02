@@ -42,10 +42,22 @@ class SoundViewer extends HTMLElement {
     // 操作盤を追加
     this.#createOperationElement(mainDiv);
 
+    // TODO 消したい
+    // const styles = document.createElement("style");
+    // this.cssStylesVal = styles;
+    // this.shadow.appendChild(styles);
+
     this.shadow.appendChild(mainDiv);
     // 生成された要素をシャドウ DOM に添付
     this.shadow.appendChild(linkElem);
   }
+
+  #setVolume = (volume) => {
+    // TODO 100がハードコードしているが本当にいいか考える
+    // TODO 初期値を合わせる
+    this.#audio.setVolume(volume / 100);
+    this.style.setProperty("--volume", `${volume / 100}`);
+  };
 
   #createOperationElement = (mainDiv) => {
     // TODO 操作盤固定機能を追加する
@@ -80,6 +92,8 @@ class SoundViewer extends HTMLElement {
         this.#drawing.seekBarDraw();
       }
     });
+    bottomOperationDiv.appendChild(playBtn);
+
     const stopBtn = document.createElement("span");
     stopBtn.classList.add("stop-btn");
     stopBtn.classList.add("operation-btn");
@@ -89,19 +103,65 @@ class SoundViewer extends HTMLElement {
       // console.log(this.#drawing.leftData);
       // console.log(this.#drawing.rightData);
     });
-    bottomOperationDiv.appendChild(playBtn);
     bottomOperationDiv.appendChild(stopBtn);
-    divEleBottom.appendChild(bottomOperationDiv);
+
+    // 再生速度変換
+    const playbackRateBtn = document.createElement("span");
+    playbackRateBtn.classList.add("operation-btn");
+    playbackRateBtn.classList.add("playbackRate-btn");
+    let aaa = -1;
+    let sss = [0.1, 0.5, 1, 1.5, 2, 3, 4, -1];
+    playbackRateBtn.addEventListener("click", (e) => {
+      aaa++;
+      aaa %= sss.length;
+      this.#audio.audioObj.playbackRate = sss[aaa];
+    });
+    bottomOperationDiv.appendChild(playbackRateBtn);
+
+    // 音量
+    const volumeDiv = document.createElement("div");
+    volumeDiv.classList.add("volume-container");
+    volumeDiv.classList.add("operation-btn");
+
+    const speakerLeftDiv = document.createElement("div");
+    speakerLeftDiv.classList.add("speaker");
+    volumeDiv.appendChild(speakerLeftDiv);
+
+    // TODO 無駄に要素に入れているので変更したい
+    const speakerRightContainer = document.createElement("div");
+    speakerRightContainer.classList.add("speaker-vloume-container");
+
+    const speakerRightDiv = document.createElement("div");
+    speakerRightDiv.classList.add("speaker-volume");
+    speakerRightContainer.appendChild(speakerRightDiv);
+    volumeDiv.appendChild(speakerRightContainer);
+
+    const volumeSlider = document.createElement("input");
+    volumeSlider.type = "range";
+    volumeSlider.min = 0;
+    volumeSlider.max = 100;
+    volumeSlider.step = 1;
+    volumeSlider.addEventListener("input", (e) => {
+      this.#setVolume(e.target.value);
+    });
+    volumeSlider.value = 50;
+    volumeSlider.classList.add("volume-slider");
+
+    volumeDiv.appendChild(volumeSlider);
+    bottomOperationDiv.appendChild(volumeDiv);
 
     // 追加
     // this.shadow.appendChild(divEleTop);
     // this.shadow.appendChild(divEleBottom);
+    divEleBottom.appendChild(bottomOperationDiv);
+
     mainDiv.appendChild(divEleTop);
     mainDiv.appendChild(divEleBottom);
   };
 
   // TODO ドラッグ&ドロップでもできるように対応する
   // TODO Light DOMから読み込み機能をつけるかどうかを判断する属性を導入する
+  // TODO アイコン化させる
   #createLoadFileElement = () => {
     // 読み込み時の実行する関数
     const onLoad = (data) => {
@@ -157,6 +217,7 @@ class SoundViewer extends HTMLElement {
   // TODO Audio classのpreservesPitch追加する
   // TODO Audio classのplaybackRateを追加する
   // TODO Audio classのloopを追加する（ループするボタンを追加）
+  // TODO mp3に対応する(優先度は低い)
   // audio関連の処理
   #audio = {
     samplingRate: undefined,
@@ -187,6 +248,7 @@ class SoundViewer extends HTMLElement {
       }
       // audio elementを作成
       this.#audio.audioObj = new Audio(file);
+      this.#setVolume(50);
 
       // audio elementのaudio nodeを作成
       this.#audio.audioSource = new MediaElementAudioSourceNode(
@@ -229,6 +291,14 @@ class SoundViewer extends HTMLElement {
       // TODO 念の為入れているがおそらくいらなくなる
       if (this.#audio.audioObj === undefined) return 0;
       return this.#audio.audioObj.currentTime;
+    },
+    /**
+     *
+     * @param {Number} volume 音量(0 ~ 1の間の数値)
+     */
+
+    setVolume: (volume) => {
+      this.#audio.audioObj.volume = volume;
     },
 
     /**
@@ -367,6 +437,7 @@ class SoundViewer extends HTMLElement {
     },
   };
 
+  // TODO 長い音声に対応するためにcanvasを連結させる
   // 描画関連
   #drawing = {
     canvasElement: undefined,
