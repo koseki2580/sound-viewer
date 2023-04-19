@@ -3,7 +3,10 @@
   display: block;
   height: 500px;
   width: 1000px;
-  --bottom-operation-backgrand: gray;
+  --bottom-operation-background: gray;
+  --wave-background: lightgray;
+  --volume-background-left: blue;
+  --volume-background-right: lightgray;
   --volume: 10px;
 }
 
@@ -48,11 +51,13 @@
 }
 
 .wave-left {
-  background-color: red;
+  /* background-color: red; */
+  background-color: var(--wave-background);
 }
 
 .wave-right {
-  background-color: green;
+  /* background-color: green; */
+  background-color: var(--wave-background);
 }
 
 .bottom-operation-container {
@@ -63,7 +68,7 @@
 }
 
 .operation-container {
-  background-color: var(--bottom-operation-backgrand);
+  background-color: var(--bottom-operation-background);
   height: 30px;
   position: absolute;
   width: 100%;
@@ -97,6 +102,7 @@
   width: 20px;
   height: 20px;
   border: 1px solid currentColor;
+  cursor: pointer;
   border-radius: 50%;
   color: #000;
   margin: 5px;
@@ -213,11 +219,24 @@
   content: "";
 }
 
+.speaker::after {
+  opacity: calc(1 - calc(100 * var(--volume)));
+  position: absolute;
+  content: "";
+  transform: rotate(45deg);
+  top: 9px;
+  left: 7px;
+  width: 20px;
+  z-index: 99;
+
+  border-top: 2px solid #000;
+}
+
 .volume-slider {
   width: 80px;
   margin: 2px 5px;
 }
-.speaker-vloume-container {
+.speaker-volume-container {
   position: relative;
   width: 10px;
   height: 10px;
@@ -234,21 +253,24 @@
   left: 0px;
   background: radial-gradient(
     farthest-side at 0px 0px,
-    var(--bottom-operation-backgrand),
-    var(--bottom-operation-backgrand) 15%,
-    #000 16%,
-    #000 34%,
-    var(--bottom-operation-backgrand) 35%,
-    var(--bottom-operation-backgrand) 50%,
-    #000 51%,
-    #000 68%,
-    var(--bottom-operation-backgrand) 69%,
-    var(--bottom-operation-backgrand) 80%,
-    #000 81%,
-    #000 99%,
-    var(--bottom-operation-backgrand) 100%
+    var(--bottom-operation-background),
+    var(--bottom-operation-background) 10%,
+    #000 10%,
+    #000 30%,
+    var(--bottom-operation-background) 30%,
+    var(--bottom-operation-background) 40%,
+    #000 40%,
+    #000 60%,
+    var(--bottom-operation-background) 60%,
+    var(--bottom-operation-background) 70%,
+    #000 70%,
+    #000 90%,
+    var(--bottom-operation-background) 90%
   );
-  clip-path: circle(calc(var(--volume) * 10px) at 0% 0%);
+  clip-path: circle(
+    max(calc(var(--volume) * 10px), calc(10px - calc(1000px * var(--volume))))
+      at 0% 0%
+  );
 }
 /* .speaker-volume::before {
   height: 10px;
@@ -307,4 +329,17 @@ input[type="range"]::-moz-focus-outer {
 }
 input[type="range"]:active::-webkit-slider-thumb {
   box-shadow: 0px 5px 10px -2px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  border-radius: 50px;
+  background: linear-gradient(
+    90deg,
+    var(--volume-background-left),
+    var(--volume-background-left)
+      calc(var(--volume) * 100% - calc(10px * calc((var(--volume) - 0.5)))),
+    var(--volume-background-right)
+      calc(var(--volume) * 100% - calc(10px * calc((var(--volume) - 0.5)))),
+    var(--volume-background-right) 100%
+  );
 }

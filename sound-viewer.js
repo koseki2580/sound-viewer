@@ -17,9 +17,14 @@ class SoundViewer extends HTMLElement {
   }
   connectedCallback() {
     this.render();
-    this.setAudioFile = this.#setAudioFile;
+    // this.setAudioFile = this.#setAudioFile;
   }
   attributeChangedCallback(name, oldValue, newValue) {}
+
+  // 初期値を設定するものがあればここで初期値を設定したい
+  #init() {
+    this.#setVolume(50);
+  }
   render() {
     // 外部スタイルシートをシャドウ DOM に適用
     const linkElem = document.createElement("link");
@@ -27,7 +32,7 @@ class SoundViewer extends HTMLElement {
     linkElem.setAttribute("href", "sound-viewer.css");
 
     // ファイルを読み込む機能を追加
-    // this.#createLoadFileElement();
+    this.#createLoadFileElement();
 
     // hover
     const mainDiv = document.createElement("div");
@@ -42,10 +47,7 @@ class SoundViewer extends HTMLElement {
     // 操作盤を追加
     this.#createOperationElement(mainDiv);
 
-    // TODO 消したい
-    // const styles = document.createElement("style");
-    // this.cssStylesVal = styles;
-    // this.shadow.appendChild(styles);
+    this.#init();
 
     this.shadow.appendChild(mainDiv);
     // 生成された要素をシャドウ DOM に添付
@@ -129,7 +131,7 @@ class SoundViewer extends HTMLElement {
 
     // TODO 無駄に要素に入れているので変更したい
     const speakerRightContainer = document.createElement("div");
-    speakerRightContainer.classList.add("speaker-vloume-container");
+    speakerRightContainer.classList.add("speaker-volume-container");
 
     const speakerRightDiv = document.createElement("div");
     speakerRightDiv.classList.add("speaker-volume");
@@ -165,48 +167,54 @@ class SoundViewer extends HTMLElement {
   #createLoadFileElement = () => {
     // 読み込み時の実行する関数
     const onLoad = (data) => {
-      this.#setAudioFile(data.target.result);
+      // this.#setAudioFile(data.target.result);
+      // console.log(data);
+      let url = URL.createObjectURL(new Blob([data.target.result]));
+      this.#audio.audioContext.decodeAudioData(data.target.result, (buffer) => {
+        this.#audio.load2(buffer, url);
+      });
     };
 
     // TODO 外からアトリビュートの設定で設定できるようにする
     // wavファイルを読みこむ部分
     const uploadBtn = document.createElement("input");
     uploadBtn.type = "file";
-    uploadBtn.accept = "audio/wav";
+    uploadBtn.accept = "audio/wav,audio/mp3";
     uploadBtn.addEventListener("change", (e) => {
-      // if (this.#audio.audioContext === undefined) this.#audio.init();
+      if (this.#audio.audioContext === undefined) this.#audio.init();
       let fileReader = new FileReader();
       const file = e.composedPath()[0].files[0];
+
       fileReader.onload = onLoad;
       fileReader.readAsArrayBuffer(file);
     });
     this.shadow.appendChild(uploadBtn);
   };
 
-  #setAudioFile = (arrayBuffer) => {
-    if (this.#audio.audioContext === undefined) this.#audio.init();
-    try {
-      const view = new DataView(arrayBuffer);
+  // #setAudioFile = (arrayBuffer) => {
+  //   if (this.#audio.audioContext === undefined) this.#audio.init();
+  //   try {
+  //     const view = new DataView(arrayBuffer);
 
-      // TODO arraybufferかどうかを知りたいだけなので以下の部分をtryに入れる必要がないので変更したい
-      const [readLeftData, readRightData] = this.#audio.read(view);
-      if (readLeftData === undefined) {
-        alert("非対応のwavファイルです");
-        return;
-      }
+  //     // TODO arraybufferかどうかを知りたいだけなので以下の部分をtryに入れる必要がないので変更したい
+  //     const [readLeftData, readRightData] = this.#audio.read(view);
+  //     if (readLeftData === undefined) {
+  //       alert("非対応のwavファイルです");
+  //       return;
+  //     }
 
-      this.#audio.load(
-        URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/wav" }))
-      );
+  //     this.#audio.load(
+  //       URL.createObjectURL(new Blob([arrayBuffer], { type: "audio/wav" }))
+  //     );
 
-      this.#drawing.init();
-      this.#drawing.setLeftData(readLeftData);
-      this.#drawing.setRightData(readRightData);
-    } catch {
-      alert("ArrayBufferのデータをセットしてください。");
-      return;
-    }
-  };
+  //     this.#drawing.init();
+  //     this.#drawing.setLeftData(readLeftData);
+  //     this.#drawing.setRightData(readRightData);
+  //   } catch {
+  //     alert("ArrayBufferのデータをセットしてください。");
+  //     return;
+  //   }
+  // };
 
   // TODO GainNodeを追加する(音量)
   // TODO StereoPannerNodeを追加(右耳から聞こえるようにするか等)
@@ -238,6 +246,47 @@ class SoundViewer extends HTMLElement {
         new (window.AudioContext || window.webkitAudioContext)();
     },
 
+    load2: async (buffer, file) => {
+      if (this._audioSource !== undefined) {
+        this._audioSource.disconnect();
+      }
+      // audio elementを作成
+      this.#setVolume(50);
+      this.#audio.source = this.#audio.audioContext.createBufferSource();
+      this.#audio.source.buffer = buffer;
+      const [readLeftData, readRightData] = await this.#audio.read2(buffer);
+      // console.log(this.#audio.source);
+      this.#audio.samplingRate = this.#audio.source.buffer.sampleRate;
+      this.#drawing.init();
+      this.#drawing.setLeftData(readLeftData);
+      this.#drawing.setRightData(readRightData);
+      this.#audio.audioObj = new Audio(file);
+
+      console.log(this.#audio.samplingRate);
+      // console.log(this.#audio.audioObj);
+
+      // connect the AudioBufferSourceNode to the
+      // destination so we can hear the sound
+      this.#audio.source.connect(this.#audio.audioContext.destination);
+      // start the source playing
+      // console.log(this.#audio.source);
+      // this.#audio.source.start();
+    },
+
+    read2: async (buffer) => {
+      let left = undefined;
+      let right = undefined;
+      if (buffer.numberOfChannels === 1) {
+        left = buffer.getChannelData(0);
+      } else {
+        left = buffer.getChannelData(0);
+        right = buffer.getChannelData(1);
+        this.#drawing.waveExpansion(right);
+      }
+      this.#drawing.waveExpansion(left);
+      return [left, right];
+    },
+
     /**
      * 音声ファイルを読み込んで再生準備する関数
      * @param {filepath} data 音声ファイルのpath
@@ -257,6 +306,8 @@ class SoundViewer extends HTMLElement {
       );
       // 再生先を接続
       // createAnalyserを使うと色々調査できるっぽい
+      // let test = this.#audio.audioSource.decodeAudioData();
+
       this.#audio.audioSource.connect(this.#audio.audioContext.destination);
     },
     /**
@@ -265,6 +316,9 @@ class SoundViewer extends HTMLElement {
     play: () => {
       if (this.#audio.isState === this.AUDIO_STATE.PLAYING) return;
       this.#audio.audioObj.play();
+      console.log(this.#audio.audioObj.duration);
+      // this.#audio.source.start();
+      // this.#audio.audioContext.resume();
       this.#audio.isState = this.AUDIO_STATE.PLAYING;
       // var drawVisual = requestAnimationFrame(draw);
     },
@@ -274,6 +328,7 @@ class SoundViewer extends HTMLElement {
      */
     pause: () => {
       this.#audio.audioObj.pause();
+      // this.#audio.audioContext.resume();
       this.#audio.isState = this.AUDIO_STATE.PAUSE;
     },
 
@@ -290,6 +345,9 @@ class SoundViewer extends HTMLElement {
       // console.log("this.#audio.audioObj.currentTime");
       // TODO 念の為入れているがおそらくいらなくなる
       if (this.#audio.audioObj === undefined) return 0;
+      // console.log(this.#audio.audioObj.duration);
+      // console.log(this.#audio.audioObj.currentTime);
+      // console.log(this.#audio.samplingRate);
       return this.#audio.audioObj.currentTime;
     },
     /**
@@ -302,140 +360,141 @@ class SoundViewer extends HTMLElement {
       if (this.#audio.audioObj) this.#audio.audioObj.volume = volume;
     },
 
-    /**
-     * wavファイルを読み込み関数
-     * @param {DataView} view ArrayBufferを取得できるクラス
-     * @returns {bool}
-     * true  : 読み込み成功
-     * false : 読み込み失敗
-     */
-    read: (view) => {
-      // 文字列を読み取る関数
-      const readString = (view, offset, length) => {
-        let text = "";
-        for (let i = 0; i < length; i++) {
-          text += String.fromCharCode(view.getUint8(offset + i));
-        }
-        return text;
-      };
+    // /**
+    //  * wavファイルを読み込み関数
+    //  * @param {DataView} view ArrayBufferを取得できるクラス
+    //  * @returns {bool}
+    //  * true  : 読み込み成功
+    //  * false : 読み込み失敗
+    //  */
+    // read: (view) => {
+    //   // 文字列を読み取る関数
+    //   const readString = (view, offset, length) => {
+    //     let text = "";
+    //     for (let i = 0; i < length; i++) {
+    //       text += String.fromCharCode(view.getUint8(offset + i));
+    //     }
+    //     return text;
+    //   };
 
-      // 16bit 1channel
-      const read16bitMonoPCM = (view, offset, length) => {
-        let output = [];
-        for (let i = 0; i < length / 2; i++) {
-          const input = view.getInt16(offset + i * 2, true);
-          output[i] = (parseFloat(input) / parseFloat(32768)) * this.maxSize;
-          if (output[i] > this.maxSize) output[i] = this.maxSize;
-          else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
-        }
-        return [output, undefined];
-      };
+    //   // 16bit 1channel
+    //   const read16bitMonoPCM = (view, offset, length) => {
+    //     let output = [];
+    //     for (let i = 0; i < length / 2; i++) {
+    //       const input = view.getInt16(offset + i * 2, true);
+    //       output[i] = (parseFloat(input) / parseFloat(32768)) * this.maxSize;
+    //       if (output[i] > this.maxSize) output[i] = this.maxSize;
+    //       else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
+    //     }
+    //     return [output, undefined];
+    //   };
 
-      // 16bit 2channel
-      const read16bitStereoPCM = (view, offset, length) => {
-        let leftOutput = [];
-        let rightOutput = [];
-        for (let i = 0; i < length / 4; i++) {
-          const left = view.getInt16(offset + i * 4, true);
-          const right = view.getInt16(offset + i * 4 + 2, true);
-          leftOutput[i] = (parseFloat(left) / parseFloat(32768)) * this.maxSize;
-          rightOutput[i] =
-            (parseFloat(right) / parseFloat(32768)) * this.maxSize;
-          if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
-          else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
-          if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
-          else if (rightOutput[i] < -this.maxSize)
-            rightOutput[i] = -this.maxSize;
-        }
-        return [leftOutput, rightOutput];
-      };
+    //   // 16bit 2channel
+    //   const read16bitStereoPCM = (view, offset, length) => {
+    //     let leftOutput = [];
+    //     let rightOutput = [];
+    //     for (let i = 0; i < length / 4; i++) {
+    //       const left = view.getInt16(offset + i * 4, true);
+    //       const right = view.getInt16(offset + i * 4 + 2, true);
+    //       leftOutput[i] = (parseFloat(left) / parseFloat(32768)) * this.maxSize;
+    //       rightOutput[i] =
+    //         (parseFloat(right) / parseFloat(32768)) * this.maxSize;
+    //       if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
+    //       else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
+    //       if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
+    //       else if (rightOutput[i] < -this.maxSize)
+    //         rightOutput[i] = -this.maxSize;
+    //     }
+    //     return [leftOutput, rightOutput];
+    //   };
 
-      // 8bit 1channel
-      const read8bitMonoPCM = (view, offset, length) => {
-        let output = [];
-        for (let i = 0; i < length; i++) {
-          const input = view.getInt8(offset + i, true);
-          output[i] = (input / 128) * this.maxSize;
-          if (output[i] > this.maxSize) output[i] = this.maxSize;
-          else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
-        }
-        return [output, undefined];
-      };
+    //   // 8bit 1channel
+    //   const read8bitMonoPCM = (view, offset, length) => {
+    //     let output = [];
+    //     for (let i = 0; i < length; i++) {
+    //       const input = view.getInt8(offset + i, true);
+    //       output[i] = (input / 128) * this.maxSize;
+    //       if (output[i] > this.maxSize) output[i] = this.maxSize;
+    //       else if (output[i] < -this.maxSize) output[i] = -this.maxSize;
+    //     }
+    //     return [output, undefined];
+    //   };
 
-      // 8bit 2channel
-      const read8bitStereoPCM = (view, offset, length) => {
-        let leftOutput = [];
-        let rightOutput = [];
-        for (let i = 0; i < length / 2; i++) {
-          const left = view.getInt8(offset + i * 2, true);
-          const right = view.getInt8(offset + i * 2 + 1, true);
-          leftOutput[i] = (left / 128) * this.maxSize;
-          rightOutput[i] = (right / 128) * this.maxSize;
-          if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
-          else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
-          if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
-          else if (rightOutput[i] < -this.maxSize)
-            rightOutput[i] = -this.maxSize;
-        }
-        return [leftOutput, rightOutput];
-      };
+    //   // 8bit 2channel
+    //   const read8bitStereoPCM = (view, offset, length) => {
+    //     let leftOutput = [];
+    //     let rightOutput = [];
+    //     for (let i = 0; i < length / 2; i++) {
+    //       const left = view.getInt8(offset + i * 2, true);
+    //       const right = view.getInt8(offset + i * 2 + 1, true);
+    //       leftOutput[i] = (left / 128) * this.maxSize;
+    //       rightOutput[i] = (right / 128) * this.maxSize;
+    //       if (leftOutput[i] > this.maxSize) leftOutput[i] = this.maxSize;
+    //       else if (leftOutput[i] < -this.maxSize) leftOutput[i] = -this.maxSize;
+    //       if (rightOutput[i] > this.maxSize) rightOutput[i] = this.maxSize;
+    //       else if (rightOutput[i] < -this.maxSize)
+    //         rightOutput[i] = -this.maxSize;
+    //     }
+    //     return [leftOutput, rightOutput];
+    //   };
 
-      // TODO 各ヘッダの結果を見てエラーを返すようにする
-      // RIFFヘッダ
-      const riffHeader = readString(view, 0, 4);
-      const fileSize = view.getUint32(4, true);
+    //   // TODO 各ヘッダの結果を見てエラーを返すようにする
+    //   // RIFFヘッダ
+    //   const riffHeader = readString(view, 0, 4);
+    //   const fileSize = view.getUint32(4, true);
 
-      // WAVEヘッダ
-      const waveHeader = readString(view, 8, 4);
+    //   // WAVEヘッダ
+    //   const waveHeader = readString(view, 8, 4);
 
-      // fmtチャンク
-      const fmt = readString(view, 12, 4);
-      const fmtChunkSize = view.getUint32(16, true); // fmtチャンクのバイト数
-      const fmtID = view.getUint16(20, true); // フォーマットID(非圧縮PCMなら1)
+    //   // fmtチャンク
+    //   const fmt = readString(view, 12, 4);
+    //   const fmtChunkSize = view.getUint32(16, true); // fmtチャンクのバイト数
+    //   const fmtID = view.getUint16(20, true); // フォーマットID(非圧縮PCMなら1)
 
-      // チャンネル数
-      this.#audio.channel = view.getUint16(22, true);
+    //   // チャンネル数
+    //   this.#audio.channel = view.getUint16(22, true);
 
-      // サンプリングレート
-      this.#audio.samplingRate = view.getUint32(24, true);
-      const dataSpeed = view.getUint32(28, true); // バイト/秒 1秒間の録音に必要なバイト数(サンプリングレート*チャンネル数*ビットレート/8)
-      const blockSize = view.getUint16(32, true); // ブロック境界、(ステレオ16bitなら16bit*2=4byte)
+    //   // サンプリングレート
+    //   this.#audio.samplingRate = view.getUint32(24, true);
+    //   const dataSpeed = view.getUint32(28, true); // バイト/秒 1秒間の録音に必要なバイト数(サンプリングレート*チャンネル数*ビットレート/8)
+    //   const blockSize = view.getUint16(32, true); // ブロック境界、(ステレオ16bitなら16bit*2=4byte)
 
-      // ビットレート
-      this.#audio.bitRate = view.getUint16(34, true);
+    //   // ビットレート
+    //   this.#audio.bitRate = view.getUint16(34, true);
 
-      let exOffset = 0; //拡張パラメータ分のオフセット
-      if (fmtChunkSize > 16) {
-        const extendedSize = fmtChunkSize - 16; // 拡張パラメータのサイズ
-        exOffset = extendedSize;
-      }
+    //   let exOffset = 0; //拡張パラメータ分のオフセット
+    //   if (fmtChunkSize > 16) {
+    //     const extendedSize = fmtChunkSize - 16; // 拡張パラメータのサイズ
+    //     exOffset = extendedSize;
+    //   }
 
-      // dataチャンク
-      const data = readString(view, 36 + exOffset, 4);
-      // 波形データのバイト数
-      const dataChunkSize = view.getUint32(40 + exOffset, true);
-      let readPCM;
-      if (this.#audio.channel === 1 && this.#audio.bitRate === 16) {
-        readPCM = read16bitMonoPCM;
-      } else if (this.#audio.channel === 2 && this.#audio.bitRate === 16) {
-        readPCM = read16bitStereoPCM;
-      } else if (this.#audio.channel === 1 && this.#audio.bitRate === 8) {
-        readPCM = read8bitMonoPCM;
-      } else if (this.#audio.channel === 2 && this.#audio.bitRate === 8) {
-        readPCM = read8bitStereoPCM;
-      } else return [undefined, undefined];
-      // let leftData;
-      // let rightData;
-      // [leftData, rightData] = readPCM(
-      //   view,
-      //   44 + exOffset,
-      //   dataChunkSize + exOffset
-      // ); // 波形データを受け取る
-      // this.#drawing.init();
-      // this.#drawing.setLeftData(leftData);
-      // this.#drawing.setRightData(rightData);
-      return readPCM(view, 44 + exOffset, dataChunkSize + exOffset);
-    },
+    //   // dataチャンク
+    //   const data = readString(view, 36 + exOffset, 4);
+    //   // 波形データのバイト数
+    //   const dataChunkSize = view.getUint32(40 + exOffset, true);
+    //   let readPCM;
+    //   if (this.#audio.channel === 1 && this.#audio.bitRate === 16) {
+    //     readPCM = read16bitMonoPCM;
+    //   } else if (this.#audio.channel === 2 && this.#audio.bitRate === 16) {
+    //     readPCM = read16bitStereoPCM;
+    //   } else if (this.#audio.channel === 1 && this.#audio.bitRate === 8) {
+    //     readPCM = read8bitMonoPCM;
+    //   } else if (this.#audio.channel === 2 && this.#audio.bitRate === 8) {
+    //     readPCM = read8bitStereoPCM;
+    //   } else return [undefined, undefined];
+    //   // let leftData;
+    //   // let rightData;
+    //   // [leftData, rightData] = readPCM(
+    //   //   view,
+    //   //   44 + exOffset,
+    //   //   dataChunkSize + exOffset
+    //   // ); // 波形データを受け取る
+    //   // this.#drawing.init();
+    //   // this.#drawing.setLeftData(leftData);
+    //   // this.#drawing.setRightData(rightData);
+    //   // console.log(this.#audio.samplingRate);
+    //   return readPCM(view, 44 + exOffset, dataChunkSize + exOffset);
+    // },
   };
 
   // TODO 長い音声に対応するためにcanvasを連結させる
@@ -465,6 +524,14 @@ class SoundViewer extends HTMLElement {
 
       // this.#drawing.seekBarCtx = this.#drawing.seekBarCanvas.getContext("2d");
     },
+
+    waveExpansion: (data) => {
+      for (let i = 0; i < data.length; ++i) {
+        data[i] *= this.maxSize;
+      }
+      return data;
+    },
+
     getPeak: (data) => {
       const max = (x, y) => {
         if (x < y) return y;
@@ -595,7 +662,6 @@ class SoundViewer extends HTMLElement {
         this.#drawing.seekBarCanvas.width,
         this.#drawing.seekBarCanvas.height
       );
-
       ctx.lineWidth = 3;
       ctx.strokeStyle = "rgba(255, 0, 0, 1)";
       const scale = this.#drawing.scale === undefined ? 0 : this.#drawing.scale;

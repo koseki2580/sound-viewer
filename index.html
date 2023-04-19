@@ -10,21 +10,21 @@
   </head>
   <body>
     <sound-viewer id="test"></sound-viewer>
-    <input type="file" accept="audio/wav" id="test2" />
+    <!-- <input type="file" accept="audio/wav" id="test2" /> -->
   </body>
   <script>
-    const a = document.getElementById("test");
-    const b = document.getElementById("test2");
-    b.addEventListener("change", (e) => {
-      // 読み込み時の実行する関数
-      const onLoad = (data) => {
-        console.log("ライトDOMからの書き込み");
-        a.setAudioFile(data.target.result);
-      };
-      let fileReader = new FileReader();
-      const file = e.composedPath()[0].files[0];
-      fileReader.onload = onLoad;
-      fileReader.readAsArrayBuffer(file);
-    });
+    // const a = document.getElementById("test");
+    // const b = document.getElementById("test2");
+    // b.addEventListener("change", (e) => {
+    //   // 読み込み時の実行する関数
+    //   const onLoad = (data) => {
+    //     console.log("ライトDOMからの書き込み");
+    //     a.setAudioFile(data.target.result);
+    //   };
+    //   let fileReader = new FileReader();
+    //   const file = e.composedPath()[0].files[0];
+    //   fileReader.onload = onLoad;
+    //   fileReader.readAsArrayBuffer(file);
+    // });
   </script>
 </html>
