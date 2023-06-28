@@ -108,21 +108,41 @@ class SoundViewer extends HTMLElement {
     bottomOperationDiv.appendChild(stopBtn);
 
     // 再生速度変換
-    const playbackRateBtn = document.createElement("span");
-    playbackRateBtn.classList.add("operation-btn");
-    playbackRateBtn.classList.add("playbackRate-btn");
-    let aaa = -1;
-    let sss = [0.1, 0.5, 1, 1.5, 2, 3, 4, -1];
-    playbackRateBtn.addEventListener("click", (e) => {
-      aaa++;
-      aaa %= sss.length;
-      this.#audio.audioObj.playbackRate = sss[aaa];
+    const playbackRate = document.createElement("span");
+    playbackRate.classList.add("operation-btn");
+    playbackRate.classList.add("playbackrate-container");
+
+    const playbackRateBtnRight = document.createElement("span");
+    playbackRateBtnRight.classList.add("range-container");
+
+    const playbackRateSlider = document.createElement("input");
+    playbackRateSlider.type = "range";
+    playbackRateSlider.classList.add("input-range-slider");
+    playbackRateSlider.classList.add("playback-slider");
+    playbackRateSlider.list = "sound-speed-label";
+    playbackRateSlider.min = 0.5;
+    playbackRateSlider.max = 2;
+    playbackRateSlider.value = 1;
+    playbackRateSlider.step = 0.25;
+    playbackRateSlider.addEventListener("input", (e) => {
+      console.log(e.target.value);
+      // this.#audio.audioObj.playbackRate = sss[aaa];
     });
-    bottomOperationDiv.appendChild(playbackRateBtn);
+
+    const playbackRateLabel = document.createElement("datalist");
+    playbackRateLabel.id = "sound-speed-label";
+
+    const playbackRateBtnLeft = document.createElement("span");
+    playbackRateBtnLeft.classList.add("playbackrate-btn");
+    playbackRate.appendChild(playbackRateBtnLeft);
+    playbackRateBtnRight.appendChild(playbackRateSlider);
+    playbackRate.appendChild(playbackRateBtnRight);
+    bottomOperationDiv.appendChild(playbackRate);
 
     // 音量
     const volumeDiv = document.createElement("div");
     volumeDiv.classList.add("volume-container");
+    volumeDiv.classList.add("range-container");
     volumeDiv.classList.add("operation-btn");
 
     const speakerLeftDiv = document.createElement("div");
@@ -147,7 +167,7 @@ class SoundViewer extends HTMLElement {
       this.#setVolume(e.target.value);
     });
     volumeSlider.value = 50;
-    volumeSlider.classList.add("volume-slider");
+    volumeSlider.classList.add("input-range-slider");
 
     volumeDiv.appendChild(volumeSlider);
     bottomOperationDiv.appendChild(volumeDiv);

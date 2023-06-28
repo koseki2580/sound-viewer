@@ -8,6 +8,10 @@
   --volume-background-left: blue;
   --volume-background-right: lightgray;
   --volume: 10px;
+  --bottom-height: 50px;
+  --btn-size: 30px;
+  --btn-boundary: calc(var(--btn-size) / 30);
+  --sound-speed: 10px;
 }
 
 .main-container {
@@ -69,7 +73,7 @@
 
 .operation-container {
   background-color: var(--bottom-operation-background);
-  height: 30px;
+  height: var(--bottom-height);
   position: absolute;
   width: 100%;
   z-index: 5;
@@ -99,25 +103,22 @@
 .operation-btn {
   display: inline-block;
   position: relative;
-  width: 20px;
-  height: 20px;
-  border: 1px solid currentColor;
+  width: var(--btn-size);
+  height: var(--btn-size);
+  border: var(--btn-boundary) solid currentColor;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: 100%;
   color: #000;
   margin: 5px;
-  border-radius: 30px;
 }
 
 .play-btn::before {
   position: absolute;
   top: 50%;
-  left: 30%;
+  right: 0%;
   transform: translateY(-50%);
-  width: 0px;
-  height: 0px;
-  border: 5px solid transparent;
-  border-left: 9px solid currentColor;
+  border: calc(var(--btn-size) * 0.25) solid transparent;
+  border-left: calc(var(--btn-size) * 0.4) solid currentColor;
   box-sizing: border-box;
   content: "";
 }
@@ -127,8 +128,8 @@
   position: absolute;
   top: 50%;
   transform: translateX(-50%) translateY(-50%);
-  width: 2px;
-  height: 9px;
+  width: calc(var(--btn-size) * 0.1);
+  height: calc(var(--btn-size) * 0.4);
   box-sizing: border-box;
   background-color: currentColor;
   content: "";
@@ -143,79 +144,137 @@
 .stop-btn::before {
   position: absolute;
   top: 50%;
-  left: 8px;
+  right: 0%;
   transform: translateX(-50%) translateY(-50%);
-  width: 0px;
-  height: 0px;
-  border: 5px solid transparent;
-  border-right: 9px solid currentColor;
+  border: calc(var(--btn-size) * 0.25) solid transparent;
+  border-right: calc(var(--btn-size) * 0.4) solid currentColor;
   box-sizing: border-box;
   content: "";
 }
 .stop-btn::after {
-  display: flex;
-  left: 6px;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 2px;
-  height: 9px;
-  box-sizing: border-box;
+  width: calc(var(--btn-size) * 0.1);
+  height: calc(var(--btn-size) * 0.4);
   background-color: currentColor;
   content: "";
+  right: 70%;
 }
 
-.playbackRate-btn {
-  transform: rotate(45deg);
-  border-left: 1px dashed currentColor;
-  border-bottom: 1px dashed currentColor;
-  border-top: 1px solid currentColor;
-  border-right: 1px solid currentColor;
+.playbackrate-container {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-content: center;
+  align-items: center;
+  /* width: calc(var(--btn-size));
+  height: var(--btn-size); */
 }
 
-.playbackRate-btn::before {
+.playbackrate-container {
+  border: solid var(--btn-boundary) transparent;
+}
+
+.playbackrate-container:hover {
+  width: calc(3 * var(--btn-size));
+}
+.playbackrate-container:hover > .range-container {
+  width: calc(3 * 5 / 6 * var(--btn-size));
+}
+
+.playbackrate-container:hover .playback-slider {
+  display: block;
+  position: relative;
+  left: calc(1 / 6 * var(--btn-size));
+  width: calc(3 * 4 / 6 * var(--btn-size));
+}
+
+.range-container {
+  width: calc(var(--btn-size) / 2);
+  height: var(--btn-size);
+  margin: calc(0px - var(--btn-boundary));
+  margin-left: calc(var(--btn-boundary));
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+
+  border: solid var(--btn-boundary) currentColor;
+  border-radius: 0 calc(var(--btn-size) / 2) calc(var(--btn-size) / 2) 0; /* 右側を丸める */
+  border-left: solid 0px transparent; /* 直線部分を消す */
+}
+.playbackrate-btn {
+  position: relative;
+  margin: calc(0px - var(--btn-boundary));
+
+  width: calc(var(--btn-size) / 2);
+  height: var(--btn-size);
+  border: dashed var(--btn-boundary) currentColor;
+  border-radius: calc(var(--btn-size) / 2) 0 0 calc(var(--btn-size) / 2); /* 左側を丸める */
+  border-right: solid 0px transparent; /* 直線部分を消す */
+}
+
+.playbackrate-btn::before {
   position: absolute;
-  transform-origin: 4px 0;
-  transform: rotate(-45deg) translateY(-50%);
+  left: 100%;
   top: 50%;
-  left: 30%;
-  width: 0px;
-  height: 0px;
-  border: 5px solid transparent;
-  border-left: 9px solid currentColor;
-  box-sizing: border-box;
+  transform: translateY(calc(var(--btn-size) * -0.25))
+    translateX(calc(var(--btn-size) * -0.1));
+  border: calc(var(--btn-size) * 0.25) solid transparent;
+  border-left: calc(var(--btn-size) * 0.4) solid currentColor;
   content: "";
+}
+
+.playback-slider::-webkit-slider-runnable-track {
+  border-radius: 50px;
+  background: linear-gradient(
+    90deg,
+    var(--volume-background-left),
+    var(--volume-background-left)
+      calc(
+        var(--sound-speed) * 100% -
+          calc(10px * calc((var(--sound-speed) - 0.5)))
+      ),
+    var(--volume-background-right)
+      calc(
+        var(--sound-speed) * 100% -
+          calc(10px * calc((var(--sound-speed) - 0.5)))
+      ),
+    var(--volume-background-right) 100%
+  );
 }
 
 /* 音量関係 */
+
+.volume-container:hover input[type="range"] {
+  visibility: visible;
+}
 .volume-container {
-  width: 120px;
+  /* width: 120px; */
   position: relative;
   display: flex;
-  border-radius: 100vh;
-  border: 1px solid black;
+  /* border-radius: 100vh; */
+  border: var(--btn-boundary) solid black;
   flex-direction: row;
   align-content: center;
   justify-content: center;
   align-items: center;
 }
 .speaker {
-  left: 50%;
-  top: 50%;
-  height: 6px;
-  width: 5px;
-  margin: 2px 5px;
+  position: relative;
+  transform: translateY(-50%);
+  width: calc(var(--btn-size) * 0.2);
+  height: calc(var(--btn-size) * 0.3);
   background-color: #000;
 }
 
 .speaker::before {
   position: absolute;
-  height: 2px;
-  top: 50%;
-  left: 0%;
-  transform: translateY(-50%);
-  border: 5px solid transparent;
-  border-right: 9px solid currentColor;
+  left: calc(var(--btn-size) * -0.125);
+  border: calc(var(--btn-size) * 0.3) solid transparent;
+  border-right: calc(var(--btn-size) * 0.4) solid currentColor;
   content: "";
 }
 
@@ -232,7 +291,7 @@
   border-top: 2px solid #000;
 }
 
-.volume-slider {
+.input-range-slider {
   width: 80px;
   margin: 2px 5px;
 }
@@ -243,12 +302,11 @@
   margin-left: 3px;
 }
 
-.speaker-volume {
+/* .speaker-volume {
   height: 10px;
   width: 10px;
   position: absolute;
 
-  /* top: 50%; */
   transform: rotate(-45deg);
   left: 0px;
   background: radial-gradient(
@@ -271,7 +329,7 @@
     max(calc(var(--volume) * 10px), calc(10px - calc(1000px * var(--volume))))
       at 0% 0%
   );
-}
+} */
 /* .speaker-volume::before {
   height: 10px;
   width: 10px;
@@ -297,7 +355,12 @@
   content: "";
 } */
 /* 以下スライダーのCSS */
+/* .range-container:hover {
+  width: 120px;
+  border-radius: 100vh;
+} */
 input[type="range"] {
+  display: none;
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;

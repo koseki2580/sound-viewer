@@ -10,6 +10,16 @@
   </head>
   <body>
     <sound-viewer id="test"></sound-viewer>
+    <label for="temp">快適な温度を選択してください。</label><br />
+    <input type="range" id="tempB" name="temp" list="values" step="5" />
+
+    <datalist id="values">
+      <option value="0" label="とても冷たい"></option>
+      <option value="25" label="冷たい"></option>
+      <option value="70" label="ふつう"></option>
+      <option value="75" label="やや温かい"></option>
+      <option value="100" label="熱い"></option>
+    </datalist>
     <!-- <input type="file" accept="audio/wav" id="test2" /> -->
   </body>
   <script>
